@@ -10,6 +10,17 @@ let lastMouseX;
 let lastMouseY;
 let holdDuration = 0;
 let holdInterval;
+let holdTimer = null;
+let growthInterval = null;
+let currentBlob = null;
+let currentScale = 0.1;
+const GROWTH_RATE = 0.1;
+const GROWTH_INTERVAL = 50; // How often to increase size (in ms)
+const MAX_SCALE = 3.0; // Maximum size multiplier
+let isHolding = false;
+let blobInterval = null;
+let mouseDownTime = 0;
+const HOLD_DELAY = 100; // 100ms delay before blobs start appearing
 
 const space = document.getElementById("infinite-space");
 // const title = document.getElementById("title");
@@ -84,13 +95,133 @@ createInitialBlobs();
 setInterval(createRandomBlob, 3000);
 
 // Event listeners
-space.addEventListener("mousedown", startDragging);
-space.addEventListener("mousemove", (e) => {
-    drag(e);
-    handleMouseMove(e);
+space.addEventListener("mousedown", (e) => {
+    isHolding = true;
+    const actualX = e.clientX - xOffset;
+    const actualY = e.clientY - yOffset;
+    
+    // Start timer for hold detection
+    holdTimer = setTimeout(() => {
+        if (isHolding && !isDragging) {
+            // Start creating blobs while holding
+            blobInterval = setInterval(() => {
+                if (isHolding && !isDragging) {
+                    createBlobCluster(
+                        actualX + (Math.random() * 100 - 50),
+                        actualY + (Math.random() * 100 - 50),
+                        true,
+                        true
+                    );
+                }
+            }, 200); // Create a new blob every 200ms
+        }
+    }, HOLD_DELAY);
 });
-space.addEventListener("mouseup", stopDragging);
-space.addEventListener("mouseleave", stopDragging);
+
+space.addEventListener("mousemove", (e) => {
+    if (isHolding) {
+        // Only start dragging if we've moved a significant amount
+        if (!isDragging && 
+            (Math.abs(e.movementX) > 5 || Math.abs(e.movementY) > 5)) {
+            startDragging(e);
+            // Clear timers if we start dragging
+            clearTimeout(holdTimer);
+            clearInterval(blobInterval);
+        }
+        
+        if (isDragging) {
+            drag(e);
+        }
+    }
+});
+
+space.addEventListener("mouseup", () => {
+    isHolding = false;
+    if (isDragging) {
+        stopDragging();
+    }
+    clearTimeout(holdTimer);
+    clearInterval(blobInterval);
+});
+
+space.addEventListener("mouseleave", () => {
+    isHolding = false;
+    if (isDragging) {
+        stopDragging();
+    }
+    clearTimeout(holdTimer);
+    clearInterval(blobInterval);
+});
+
+function startBlobGrowth(x, y) {
+    // Create initial small blob
+    currentScale = 0.1;
+    currentBlob = createGrowingBlobCluster(x, y);
+    
+    // Start growing the blob
+    growthInterval = setInterval(() => {
+        if (currentScale < MAX_SCALE) {
+            currentScale += GROWTH_RATE;
+            updateBlobSize();
+        }
+    }, GROWTH_INTERVAL);
+}
+
+function createGrowingBlobCluster(baseX, baseY) {
+    const cluster = document.createElement('div');
+    cluster.className = 'blob-cluster';
+    cluster.style.left = `${baseX}px`;
+    cluster.style.top = `${baseY}px`;
+    
+    const numBlobs = Math.floor(Math.random() * 4) + 4;
+    const palette = getRandomPalette();
+    
+    for (let i = 0; i < numBlobs; i++) {
+        const blob = document.createElement('div');
+        blob.className = 'aura intense';
+        
+        const offsetX = Math.random() * 100 - 50;
+        const offsetY = Math.random() * 100 - 50;
+        
+        blob.style.left = `${offsetX}px`;
+        blob.style.top = `${offsetY}px`;
+        
+        const color1 = palette[Math.floor(Math.random() * palette.length)];
+        const color2 = palette[Math.floor(Math.random() * palette.length)];
+        const angle = Math.random() * 360;
+        blob.style.background = `linear-gradient(${angle}deg, ${color1}, ${color2})`;
+        
+        blob.style.transform = `scale(${currentScale})`;
+        blob.style.transition = 'transform 0.05s ease-out';
+        
+        cluster.appendChild(blob);
+    }
+    
+    space.appendChild(cluster);
+    return cluster;
+}
+
+function updateBlobSize() {
+    if (currentBlob) {
+        const blobs = currentBlob.getElementsByClassName('aura');
+        for (let blob of blobs) {
+            blob.style.transform = `scale(${currentScale})`;
+        }
+    }
+}
+
+function stopBlobGrowth() {
+    clearInterval(growthInterval);
+    if (currentBlob) {
+        const blobs = currentBlob.getElementsByClassName('aura');
+        for (let blob of blobs) {
+            blob.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+            blob.style.opacity = '0.8';
+        }
+        currentBlob = null;
+    }
+    currentScale = 0.1;
+}
 
 function createInitialBlobs() {
     // Create more blobs spread across a larger area
@@ -145,46 +276,6 @@ function createRandomBlob() {
     const y = -yOffset - margin + (Math.random() * (viewportHeight + 2 * margin));
     
     createBlobCluster(x, y, false, true);
-}
-
-function handleMouseMove(e) {
-    if (isDragging) {
-        clearTimeout(mouseTimeout);
-        clearInterval(holdInterval);
-        holdDuration = 0;
-        return;
-    }
-    
-    const actualX = e.clientX - xOffset;
-    const actualY = e.clientY - yOffset;
-    
-    if (!lastMouseX || 
-        Math.abs(lastMouseX - actualX) > 5 || 
-        Math.abs(lastMouseY - actualY) > 5) {
-        
-        clearTimeout(mouseTimeout);
-        clearInterval(holdInterval);
-        holdDuration = 0;
-        
-        mouseTimeout = setTimeout(() => {
-            createBlobCluster(actualX, actualY, true, true);
-            holdDuration = 0;
-            holdInterval = setInterval(() => {
-                holdDuration += 100;
-                if (holdDuration % 500 === 0) {
-                    createBlobCluster(
-                        actualX + (Math.random() * 100 - 50),
-                        actualY + (Math.random() * 100 - 50),
-                        true,
-                        true
-                    );
-                }
-            }, 100);
-        }, 400);
-    }
-    
-    lastMouseX = actualX;
-    lastMouseY = actualY;
 }
 
 function createBlobCluster(baseX, baseY, isIntense = false, animate = false) {
