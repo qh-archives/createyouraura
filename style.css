@@ -113,3 +113,77 @@ body {
     color: rgba(0, 0, 0, 0.4);
     -webkit-text-stroke: 0;
 }
+
+.message-button {
+    position: absolute;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    z-index: 1000;
+    transition: all 0.3s ease;
+}
+
+.message-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+}
+
+.message-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.message-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.message-input-container {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.message-input {
+    width: 300px;
+    min-height: 100px;
+    margin: 10px 0;
+    padding: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+    resize: vertical;
+    overflow-y: auto;
+}
+
+/* Remove or comment out the .blob-message class */
+/*.blob-message {
+    position: absolute;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: rgba(0, 0, 0, 0.8);
+    text-align: center;
+    transform: translateY(-40px);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 5px 10px;
+    border-radius: 15px;
+    pointer-events: none;
+}*/
+
