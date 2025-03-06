@@ -94,11 +94,30 @@ createInitialBlobs();
 // Start random blob generation with slower interval
 setInterval(createRandomBlob, 3000);
 
-// Event listeners
-space.addEventListener("mousedown", (e) => {
+// ====== Mouse Event Listeners ======
+space.addEventListener("mousedown", handlePointerDown);
+space.addEventListener("mousemove", handlePointerMove);
+space.addEventListener("mouseup", handlePointerUp);
+space.addEventListener("mouseleave", handlePointerLeave);
+
+// ====== Touch Event Listeners ======
+space.addEventListener("touchstart", handleTouchStart, { passive: false });
+space.addEventListener("touchmove", handleTouchMove, { passive: false });
+space.addEventListener("touchend", handlePointerUp);
+space.addEventListener("touchcancel", handlePointerLeave);
+
+// ====== Event Handler Functions ======
+function handlePointerDown(e) {
     isHolding = true;
-    const actualX = e.clientX - xOffset;
-    const actualY = e.clientY - yOffset;
+    
+    // Get coordinates (whether mouse or touch)
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : null);
+    
+    if (clientX === null || clientY === null) return;
+    
+    const actualX = clientX - xOffset;
+    const actualY = clientY - yOffset;
     
     // Start timer for hold detection
     holdTimer = setTimeout(() => {
@@ -116,13 +135,52 @@ space.addEventListener("mousedown", (e) => {
             }, 200); // Create a new blob every 200ms
         }
     }, HOLD_DELAY);
-});
+}
 
-space.addEventListener("mousemove", (e) => {
+function handleTouchStart(e) {
+    // Prevent default to avoid scrolling on touch devices
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+    handlePointerDown(e);
+}
+
+function handlePointerMove(e) {
     if (isHolding) {
+        const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : null);
+        const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : null);
+        
+        if (clientX === null || clientY === null) return;
+        
+        // For touch events, we don't have movementX/Y, so we need to calculate distance
         // Only start dragging if we've moved a significant amount
-        if (!isDragging && 
-            (Math.abs(e.movementX) > 5 || Math.abs(e.movementY) > 5)) {
+        if (!isDragging) {
+            const movementX = e.movementX || 0; // only available for mouse events
+            const movementY = e.movementY || 0; // only available for mouse events
+            
+            if (Math.abs(movementX) > 5 || Math.abs(movementY) > 5) {
+                startDragging(e);
+                // Clear timers if we start dragging
+                clearTimeout(holdTimer);
+                clearInterval(blobInterval);
+            }
+        }
+        
+        if (isDragging) {
+            drag(e);
+        }
+    }
+}
+
+function handleTouchMove(e) {
+    // Prevent default to avoid scrolling on touch devices
+    if (e.cancelable) {
+        e.preventDefault();
+    }
+    
+    if (isHolding) {
+        // For touch events, we don't have movement, so always start dragging if holding
+        if (!isDragging) {
             startDragging(e);
             // Clear timers if we start dragging
             clearTimeout(holdTimer);
@@ -133,25 +191,25 @@ space.addEventListener("mousemove", (e) => {
             drag(e);
         }
     }
-});
+}
 
-space.addEventListener("mouseup", () => {
+function handlePointerUp() {
     isHolding = false;
     if (isDragging) {
         stopDragging();
     }
     clearTimeout(holdTimer);
     clearInterval(blobInterval);
-});
+}
 
-space.addEventListener("mouseleave", () => {
+function handlePointerLeave() {
     isHolding = false;
     if (isDragging) {
         stopDragging();
     }
     clearTimeout(holdTimer);
     clearInterval(blobInterval);
-});
+}
 
 function startBlobGrowth(x, y) {
     // Create initial small blob
@@ -323,49 +381,128 @@ function createBlobCluster(baseX, baseY, isIntense = false, animate = false) {
                 setTimeout(() => {
                     blob.style.transition = 'all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
                     blob.style.transform = `scale(1)`;
-                    blob.style.opacity = '0.8';
-                }, index * 150);
-            });
-        }
-    });
-
-    // Fade out and remove after 30 seconds
-    setTimeout(() => {
-        // Start fade out
-        cluster.style.transition = 'all 2s ease-out';
-        cluster.style.opacity = '0';
-        
-        // Remove from DOM after fade completes
+                    blob.style.opacity = '0.8';}, index * 150);
+                });
+            }
+        });
+    
+        // Fade out and remove after 30 seconds
         setTimeout(() => {
-            cluster.remove();
-        }, 2000);
-    }, 30000);
-}
-
-function startDragging(e) {
-    initialX = e.clientX - xOffset;
-    initialY = e.clientY - yOffset;
-    isDragging = true;
-    document.body.style.cursor = 'grabbing';
-}
-
-function drag(e) {
-    if (isDragging) {
-        e.preventDefault();
-        
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
-
-        // Constrain movement within our large canvas
-        xOffset = Math.min(Math.max(currentX, -90000), 0);
-        yOffset = Math.min(Math.max(currentY, -90000), 0);
-
-        space.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+            // Start fade out
+            cluster.style.transition = 'all 2s ease-out';
+            cluster.style.opacity = '0';
+            
+            // Remove from DOM after fade completes
+            setTimeout(() => {
+                cluster.remove();
+            }, 2000);
+        }, 30000);
     }
-}
-
-function stopDragging() {
-    isDragging = false;
-    document.body.style.cursor = 'default';
-}
-
+    
+    function startDragging(e) {
+        // Get coordinates from either mouse or touch event
+        const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+        const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+        
+        initialX = clientX - xOffset;
+        initialY = clientY - yOffset;
+        isDragging = true;
+        document.body.style.cursor = 'grabbing';
+    }
+    
+    function drag(e) {
+        if (isDragging) {
+            if (e.preventDefault) e.preventDefault();
+            
+            // Get coordinates from either mouse or touch event
+            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            
+            currentX = clientX - initialX;
+            currentY = clientY - initialY;
+    
+            // Constrain movement within our large canvas
+            xOffset = Math.min(Math.max(currentX, -90000), 0);
+            yOffset = Math.min(Math.max(currentY, -90000), 0);
+    
+            space.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
+        }
+    }
+    
+    function stopDragging() {
+        isDragging = false;
+        document.body.style.cursor = 'default';
+    }
+    
+    // Add pinch-to-zoom functionality for mobile
+    let initialDistance = 0;
+    let currentZoom = 1;
+    
+    space.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) {
+            // Two fingers are touching the screen - prepare for pinch/zoom
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            initialDistance = Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+            );
+        }
+    }, { passive: false });
+    
+    space.addEventListener('touchmove', function(e) {
+        if (e.touches.length === 2) {
+            // Handle pinch/zoom
+            e.preventDefault();
+            
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            const currentDistance = Math.hypot(
+                touch2.clientX - touch1.clientX,
+                touch2.clientY - touch1.clientY
+            );
+            
+            if (initialDistance > 0) {
+                // Calculate new zoom level
+                const newZoom = currentZoom * (currentDistance / initialDistance);
+                // Limit zoom levels
+                const limitedZoom = Math.min(Math.max(newZoom, 0.5), 3);
+                
+                // Apply new zoom to the space - we're modifying the transform
+                const currentTransform = space.style.transform;
+                // Extract current translation
+                const translateMatch = currentTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+                if (translateMatch) {
+                    const translateX = translateMatch[1];
+                    const translateY = translateMatch[2];
+                    
+                    // Apply new transform with both translation and scale
+                    space.style.transform = `translate(${translateX}, ${translateY}) scale(${limitedZoom})`;
+                    
+                    // Update current zoom
+                    currentZoom = limitedZoom;
+                    
+                    // Reset initial distance for next calculation
+                    initialDistance = currentDistance;
+                }
+            }
+        }
+    }, { passive: false });
+    
+    // Disable default pinch-zoom behavior on the page
+    document.addEventListener('touchmove', function(e) {
+        if (e.touches.length > 1) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Add additional meta tag to prevent page zooming
+    function addViewportMeta() {
+        let meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.getElementsByTagName('head')[0].appendChild(meta);
+    }
+    
+    // Call this function when the page loads
+    addViewportMeta();
