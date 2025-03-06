@@ -21,6 +21,8 @@ let isHolding = false;
 let blobInterval = null;
 let mouseDownTime = 0;
 const HOLD_DELAY = 100; // 100ms delay before blobs start appearing
+let currentMessageBlob = null;
+let messageOverlay = null;
 
 const space = document.getElementById("infinite-space");
 // const title = document.getElementById("title");
@@ -194,6 +196,22 @@ function handleTouchMove(e) {
 }
 
 function handlePointerUp() {
+    if (isHolding && !isDragging && currentBlob) {
+        // Create message button near the blob
+        const button = document.createElement('button');
+        button.className = 'message-button leave-message-btn'; // Add specific class for identification
+        button.textContent = 'Leave a Message';
+        button.style.left = `${currentBlob.offsetLeft}px`;
+        button.style.top = `${currentBlob.offsetTop + 60}px`; // Position below blob
+        
+        button.onclick = () => {
+            currentMessageBlob = currentBlob;
+            messageOverlay.classList.add('active');
+        };
+        
+        space.appendChild(button);
+    }
+    
     isHolding = false;
     if (isDragging) {
         stopDragging();
@@ -343,6 +361,9 @@ function createBlobCluster(baseX, baseY, isIntense = false, animate = false) {
     cluster.style.top = `${baseY}px`;
     cluster.style.opacity = '0';
 
+    // Set this as the current blob
+    currentBlob = cluster;
+
     const numBlobs = Math.floor(Math.random() * 4) + 4;
     const blobs = [];
     const palette = getRandomPalette();
@@ -381,128 +402,213 @@ function createBlobCluster(baseX, baseY, isIntense = false, animate = false) {
                 setTimeout(() => {
                     blob.style.transition = 'all 1.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
                     blob.style.transform = `scale(1)`;
-                    blob.style.opacity = '0.8';}, index * 150);
-                });
-            }
-        });
+                    blob.style.opacity = '0.8';
+                }, index * 150);
+            });
+        }
+    });
+
+    return cluster;
+}
+
+function startDragging(e) {
+    // Get coordinates from either mouse or touch event
+    const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+    const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
     
-        // Fade out and remove after 30 seconds
-        setTimeout(() => {
-            // Start fade out
-            cluster.style.transition = 'all 2s ease-out';
-            cluster.style.opacity = '0';
-            
-            // Remove from DOM after fade completes
-            setTimeout(() => {
-                cluster.remove();
-            }, 2000);
-        }, 30000);
-    }
-    
-    function startDragging(e) {
+    initialX = clientX - xOffset;
+    initialY = clientY - yOffset;
+    isDragging = true;
+    document.body.style.cursor = 'grabbing';
+}
+
+function drag(e) {
+    if (isDragging) {
+        if (e.preventDefault) e.preventDefault();
+        
         // Get coordinates from either mouse or touch event
         const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
         const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
         
-        initialX = clientX - xOffset;
-        initialY = clientY - yOffset;
-        isDragging = true;
-        document.body.style.cursor = 'grabbing';
+        currentX = clientX - initialX;
+        currentY = clientY - initialY;
+
+        // Constrain movement within our large canvas
+        xOffset = Math.min(Math.max(currentX, -90000), 0);
+        yOffset = Math.min(Math.max(currentY, -90000), 0);
+
+        space.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
     }
-    
-    function drag(e) {
-        if (isDragging) {
-            if (e.preventDefault) e.preventDefault();
-            
-            // Get coordinates from either mouse or touch event
-            const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-            const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
-            
-            currentX = clientX - initialX;
-            currentY = clientY - initialY;
-    
-            // Constrain movement within our large canvas
-            xOffset = Math.min(Math.max(currentX, -90000), 0);
-            yOffset = Math.min(Math.max(currentY, -90000), 0);
-    
-            space.style.transform = `translate(${xOffset}px, ${yOffset}px)`;
-        }
+}
+
+function stopDragging() {
+    isDragging = false;
+    document.body.style.cursor = 'default';
+}
+
+// Add pinch-to-zoom functionality for mobile
+let initialDistance = 0;
+let currentZoom = 1;
+
+space.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+        // Two fingers are touching the screen - prepare for pinch/zoom
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        initialDistance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
     }
-    
-    function stopDragging() {
-        isDragging = false;
-        document.body.style.cursor = 'default';
-    }
-    
-    // Add pinch-to-zoom functionality for mobile
-    let initialDistance = 0;
-    let currentZoom = 1;
-    
-    space.addEventListener('touchstart', function(e) {
-        if (e.touches.length === 2) {
-            // Two fingers are touching the screen - prepare for pinch/zoom
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            initialDistance = Math.hypot(
-                touch2.clientX - touch1.clientX,
-                touch2.clientY - touch1.clientY
-            );
-        }
-    }, { passive: false });
-    
-    space.addEventListener('touchmove', function(e) {
-        if (e.touches.length === 2) {
-            // Handle pinch/zoom
-            e.preventDefault();
+}, { passive: false });
+
+space.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+        // Handle pinch/zoom
+        e.preventDefault();
+        
+        const touch1 = e.touches[0];
+        const touch2 = e.touches[1];
+        const currentDistance = Math.hypot(
+            touch2.clientX - touch1.clientX,
+            touch2.clientY - touch1.clientY
+        );
+        
+        if (initialDistance > 0) {
+            // Calculate new zoom level
+            const newZoom = currentZoom * (currentDistance / initialDistance);
+            // Limit zoom levels
+            const limitedZoom = Math.min(Math.max(newZoom, 0.5), 3);
             
-            const touch1 = e.touches[0];
-            const touch2 = e.touches[1];
-            const currentDistance = Math.hypot(
-                touch2.clientX - touch1.clientX,
-                touch2.clientY - touch1.clientY
-            );
-            
-            if (initialDistance > 0) {
-                // Calculate new zoom level
-                const newZoom = currentZoom * (currentDistance / initialDistance);
-                // Limit zoom levels
-                const limitedZoom = Math.min(Math.max(newZoom, 0.5), 3);
+            // Apply new zoom to the space - we're modifying the transform
+            const currentTransform = space.style.transform;
+            // Extract current translation
+            const translateMatch = currentTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+            if (translateMatch) {
+                const translateX = translateMatch[1];
+                const translateY = translateMatch[2];
                 
-                // Apply new zoom to the space - we're modifying the transform
-                const currentTransform = space.style.transform;
-                // Extract current translation
-                const translateMatch = currentTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
-                if (translateMatch) {
-                    const translateX = translateMatch[1];
-                    const translateY = translateMatch[2];
-                    
-                    // Apply new transform with both translation and scale
-                    space.style.transform = `translate(${translateX}, ${translateY}) scale(${limitedZoom})`;
-                    
-                    // Update current zoom
-                    currentZoom = limitedZoom;
-                    
-                    // Reset initial distance for next calculation
-                    initialDistance = currentDistance;
-                }
+                // Apply new transform with both translation and scale
+                space.style.transform = `translate(${translateX}, ${translateY}) scale(${limitedZoom})`;
+                
+                // Update current zoom
+                currentZoom = limitedZoom;
+                
+                // Reset initial distance for next calculation
+                initialDistance = currentDistance;
             }
         }
-    }, { passive: false });
+    }
+}, { passive: false });
+
+// Disable default pinch-zoom behavior on the page
+document.addEventListener('touchmove', function(e) {
+    if (e.touches.length > 1) {
+        e.preventDefault();
+    }
+}, { passive: false });
+
+// Add additional meta tag to prevent page zooming
+function addViewportMeta() {
+    let meta = document.createElement('meta');
+    meta.name = 'viewport';
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    document.getElementsByTagName('head')[0].appendChild(meta);
+}
+
+// Call this function when the page loads
+addViewportMeta();
+
+// Add the createMessageOverlay function if it doesn't exist
+function createMessageOverlay() {
+    messageOverlay = document.createElement('div');
+    messageOverlay.className = 'message-overlay';
+    messageOverlay.style.display = 'flex';
+    messageOverlay.style.justifyContent = 'center';
+    messageOverlay.style.alignItems = 'center';
     
-    // Disable default pinch-zoom behavior on the page
-    document.addEventListener('touchmove', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
+    const container = document.createElement('div');
+    container.className = 'message-input-container';
+    container.style.backgroundColor = 'white';
+    container.style.padding = '20px';
+    container.style.borderRadius = '10px';
+    container.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+    container.style.position = 'relative'; // For absolute positioning of button
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'center';
+    container.style.minHeight = '200px'; // Give container minimum height
+    
+    const textarea = document.createElement('textarea');
+    textarea.className = 'message-input';
+    textarea.placeholder = 'Type your message here...';
+    textarea.style.width = '500px';
+    textarea.style.height = 'auto';
+    textarea.style.minHeight = '100px';
+    textarea.style.maxHeight = '400px';
+    textarea.style.resize = 'vertical';
+    textarea.style.overflowY = 'auto';
+    textarea.style.marginBottom = '60px'; // Space for button below
+    
+    const submitButton = document.createElement('button');
+    submitButton.className = 'message-button';
+    submitButton.textContent = 'Submit';
+    submitButton.style.position = 'absolute'; // Position absolutely
+    submitButton.style.bottom = '20px'; // Distance from bottom
+    submitButton.style.left = '50%'; // Center horizontally
+    submitButton.style.transform = 'translateX(-50%)'; // Perfect centering
+    submitButton.style.padding = '8px 20px';
+    submitButton.style.minWidth = '100px'; // Minimum width for button
+    submitButton.onclick = handleMessageSubmit;
+    
+    container.appendChild(textarea);
+    container.appendChild(submitButton);
+    messageOverlay.appendChild(container);
+    document.body.appendChild(messageOverlay);
+    
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+}
+
+function handleMessageSubmit() {
+    const textarea = messageOverlay.querySelector('.message-input');
+    const message = textarea.value.trim();
+    
+    if (message && currentMessageBlob) {
+        // Create text element without any container styling
+        const messageElement = document.createElement('div');
+        messageElement.style.position = 'absolute';
+        messageElement.style.left = '50%';
+        messageElement.style.top = '0';
+        messageElement.style.transform = 'translate(-50%, -100%)';
+        messageElement.style.width = '200px';
+        messageElement.style.textAlign = 'center';
+        messageElement.style.color = 'white';
+        messageElement.style.fontFamily = "'JetBrains Mono', monospace";
+        messageElement.style.fontSize = '14px';
+        messageElement.style.pointerEvents = 'none';
+        messageElement.style.zIndex = '1000';
+        messageElement.style.whiteSpace = 'pre-wrap';
+        messageElement.style.wordBreak = 'break-word';
+        messageElement.style.textShadow = '0 0 2px rgba(0,0,0,0.3)';
+        messageElement.textContent = message;
+        
+        currentMessageBlob.appendChild(messageElement);
+        
+        // Remove all "Leave a Message" buttons
+        const buttons = document.getElementsByClassName('leave-message-btn');
+        while (buttons.length > 0) {
+            buttons[0].remove();
         }
-    }, { passive: false });
-    
-    // Add additional meta tag to prevent page zooming
-    function addViewportMeta() {
-        let meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        document.getElementsByTagName('head')[0].appendChild(meta);
     }
     
-    // Call this function when the page loads
-    addViewportMeta();
+    // Reset and hide overlay
+    textarea.value = '';
+    messageOverlay.classList.remove('active');
+    currentMessageBlob = null;
+}
+
+// Call this when the page loads
+createMessageOverlay();
