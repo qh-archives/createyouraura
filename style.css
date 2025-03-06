@@ -150,7 +150,7 @@ body {
 
 .message-overlay.active {
     opacity: 1;
-    pointer-events: all;
+    pointer-events: auto;
 }
 
 .message-input-container {
@@ -171,6 +171,8 @@ body {
     border-radius: 5px;
     resize: vertical;
     overflow-y: auto;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 /* Remove or comment out the .blob-message class */

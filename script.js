@@ -588,94 +588,77 @@ addViewportMeta();
 function createMessageOverlay() {
     messageOverlay = document.createElement('div');
     messageOverlay.className = 'message-overlay';
-    messageOverlay.style.display = 'flex';
-    messageOverlay.style.justifyContent = 'center';
-    messageOverlay.style.alignItems = 'center';
+    messageOverlay.style.display = 'none'; // Start hidden
+    messageOverlay.style.position = 'fixed';
+    messageOverlay.style.top = '0';
+    messageOverlay.style.left = '0';
+    messageOverlay.style.width = '100%';
+    messageOverlay.style.height = '100%';
+    messageOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+    messageOverlay.style.zIndex = '2000';
     
     const container = document.createElement('div');
     container.className = 'message-input-container';
+    container.style.position = 'absolute';
+    container.style.top = '50%';
+    container.style.left = '50%';
+    container.style.transform = 'translate(-50%, -50%)';
+    container.style.width = '80%';
+    container.style.maxWidth = '500px';
     container.style.backgroundColor = 'white';
     container.style.padding = '20px';
     container.style.borderRadius = '10px';
     container.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
-    container.style.position = 'relative';
-    container.style.display = 'flex';
-    container.style.flexDirection = 'column';
-    container.style.alignItems = 'center';
-    container.style.width = '80%'; // Make container responsive
-    container.style.maxWidth = '500px';
     
-    // Create a form to handle mobile keyboard return key
-    const form = document.createElement('form');
-    form.style.width = '100%';
-    form.style.display = 'flex';
-    form.style.flexDirection = 'column';
-    form.style.alignItems = 'center';
-    
-    const textarea = document.createElement('textarea');
-    textarea.className = 'message-input';
-    textarea.placeholder = 'Type your message here...';
-    textarea.style.width = '100%';
-    textarea.style.height = 'auto';
-    textarea.style.minHeight = '100px';
-    textarea.style.maxHeight = '200px';
-    textarea.style.resize = 'none'; // Disable resize on mobile
-    textarea.style.overflowY = 'auto';
-    textarea.style.marginBottom = '20px';
-    textarea.style.padding = '10px';
-    textarea.style.boxSizing = 'border-box';
-    textarea.style.fontSize = '16px'; // Prevent zoom on mobile
+    const input = document.createElement('input'); // Changed from textarea to input
+    input.type = 'text';
+    input.className = 'message-input';
+    input.placeholder = 'Type your message here...';
+    input.style.width = '100%';
+    input.style.padding = '10px';
+    input.style.marginBottom = '20px';
+    input.style.border = '1px solid rgba(0, 0, 0, 0.2)';
+    input.style.borderRadius = '5px';
+    input.style.fontSize = '16px'; // Prevent zoom on mobile
     
     const submitButton = document.createElement('button');
     submitButton.className = 'message-button';
     submitButton.textContent = 'Submit';
-    submitButton.type = 'submit';
-    submitButton.style.padding = '8px 20px';
-    submitButton.style.minWidth = '100px';
+    submitButton.style.display = 'block';
+    submitButton.style.margin = '0 auto';
     
-    form.appendChild(textarea);
-    form.appendChild(submitButton);
-    container.appendChild(form);
+    container.appendChild(input);
+    container.appendChild(submitButton);
     messageOverlay.appendChild(container);
     document.body.appendChild(messageOverlay);
     
-    // Handle form submission
-    form.addEventListener('submit', (e) => {
+    // Show overlay when active class is added
+    messageOverlay.addEventListener('transitionend', function() {
+        if (messageOverlay.classList.contains('active')) {
+            input.focus(); // Focus the input when overlay appears
+        }
+    });
+    
+    // Handle submit button click
+    submitButton.addEventListener('click', (e) => {
         e.preventDefault();
         handleMessageSubmit();
     });
     
-    // Handle return key on mobile
-    textarea.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+    // Handle enter key
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
             e.preventDefault();
             handleMessageSubmit();
         }
     });
-    
-    // Auto-resize textarea
-    textarea.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-    
-    // Focus textarea when overlay opens
-    messageOverlay.addEventListener('click', (e) => {
-        if (e.target === messageOverlay) {
-            messageOverlay.classList.remove('active');
-        }
-    });
-    
-    // Add class to handle mobile keyboard
-    document.documentElement.classList.add('mobile-keyboard-open');
 }
 
 function handleMessageSubmit() {
-    const textarea = messageOverlay.querySelector('.message-input');
-    const message = textarea.value.trim();
+    const input = messageOverlay.querySelector('.message-input');
+    const message = input.value.trim();
     
     if (message && currentMessageBlob) {
-        // Create text element without any container styling
         const messageElement = document.createElement('div');
         messageElement.style.position = 'absolute';
         messageElement.style.left = '50%';
@@ -703,7 +686,8 @@ function handleMessageSubmit() {
     }
     
     // Reset and hide overlay
-    textarea.value = '';
+    input.value = '';
+    messageOverlay.style.display = 'none';
     messageOverlay.classList.remove('active');
     currentMessageBlob = null;
 }
