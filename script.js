@@ -192,6 +192,11 @@ function handleTouchStart(e) {
     if (e.cancelable) {
         e.preventDefault();
     }
+    
+    // Reset last position
+    lastMouseX = e.touches[0].clientX;
+    lastMouseY = e.touches[0].clientY;
+    
     handlePointerDown(e);
 }
 
@@ -229,8 +234,17 @@ function handleTouchMove(e) {
     }
     
     if (isHolding) {
-        // For touch events, we don't have movement, so always start dragging if holding
-        if (!isDragging) {
+        // Calculate movement distance since touch start
+        const touch = e.touches[0];
+        const movementX = touch.clientX - (lastMouseX || touch.clientX);
+        const movementY = touch.clientY - (lastMouseY || touch.clientY);
+        
+        // Update last position
+        lastMouseX = touch.clientX;
+        lastMouseY = touch.clientY;
+        
+        // Only start dragging if we've moved a significant amount
+        if (!isDragging && (Math.abs(movementX) > 10 || Math.abs(movementY) > 10)) {
             startDragging(e);
             // Clear timers if we start dragging
             clearTimeout(holdTimer);
