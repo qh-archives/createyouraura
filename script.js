@@ -105,26 +105,31 @@ space.addEventListener("mouseleave", handlePointerLeave);
 // ====== Touch Event Listeners ======
 space.addEventListener("touchstart", handleTouchStart, { passive: false });
 space.addEventListener("touchmove", handleTouchMove, { passive: false });
-space.addEventListener("touchend", (e) => {
-    if (isHolding && !isDragging && currentBlob) {
-        // Get the last touch position
-        const lastTouch = e.changedTouches[0];
-        
-        // Create message button near the blob
-        const button = document.createElement('button');
-        button.className = 'message-button leave-message-btn';
-        button.textContent = 'Leave a Message';
-        button.style.left = `${currentBlob.offsetLeft}px`;
-        button.style.top = `${currentBlob.offsetTop + 60}px`;
-        
-        button.onclick = () => {
-            currentMessageBlob = currentBlob;
-            messageOverlay.classList.add('active');
-        };
-        
-        space.appendChild(button);
+space.addEventListener("touchend", function(e) {
+    console.log('Touch ended, isHolding:', isHolding, 'isDragging:', isDragging); // Debug log
+    
+    if (isHolding && !isDragging) {
+        // Create message button near the most recently created blob
+        if (currentBlob) {
+            console.log('Creating button for blob'); // Debug log
+            const button = document.createElement('button');
+            button.className = 'message-button leave-message-btn';
+            button.textContent = 'Leave a Message';
+            button.style.position = 'absolute';
+            button.style.left = `${currentBlob.offsetLeft}px`;
+            button.style.top = `${currentBlob.offsetTop + 60}px`;
+            button.style.zIndex = '1000'; // Ensure button is above other elements
+            
+            button.onclick = () => {
+                currentMessageBlob = currentBlob;
+                messageOverlay.classList.add('active');
+            };
+            
+            space.appendChild(button);
+        }
     }
     
+    // Reset states
     isHolding = false;
     if (isDragging) {
         stopDragging();
@@ -228,7 +233,6 @@ function handlePointerMove(e) {
 }
 
 function handleTouchMove(e) {
-    // Prevent default to avoid scrolling on touch devices
     if (e.cancelable) {
         e.preventDefault();
     }
@@ -244,9 +248,8 @@ function handleTouchMove(e) {
         lastMouseY = touch.clientY;
         
         // Only start dragging if we've moved a significant amount
-        if (!isDragging && (Math.abs(movementX) > 10 || Math.abs(movementY) > 10)) {
+        if (!isDragging && (Math.abs(movementX) > 20 || Math.abs(movementY) > 20)) {
             startDragging(e);
-            // Clear timers if we start dragging
             clearTimeout(holdTimer);
             clearInterval(blobInterval);
         }
