@@ -105,61 +105,8 @@ space.addEventListener("mouseleave", handlePointerLeave);
 // ====== Touch Event Listeners ======
 space.addEventListener("touchstart", handleTouchStart, { passive: false });
 space.addEventListener("touchmove", handleTouchMove, { passive: false });
-space.addEventListener("touchend", function(e) {
-    console.log('Touch ended, isHolding:', isHolding, 'isDragging:', isDragging); // Debug log
-    
-    if (isHolding && !isDragging) {
-        // Create message button near the most recently created blob
-        if (currentBlob) {
-            console.log('Creating button for blob'); // Debug log
-            const button = document.createElement('button');
-            button.className = 'message-button leave-message-btn';
-            button.textContent = 'Leave a Message';
-            button.style.position = 'absolute';
-            button.style.left = `${currentBlob.offsetLeft}px`;
-            button.style.top = `${currentBlob.offsetTop + 60}px`;
-            button.style.zIndex = '1000'; // Ensure button is above other elements
-            
-            button.onclick = () => {
-                currentMessageBlob = currentBlob;
-                messageOverlay.classList.add('active');
-            };
-            
-            space.appendChild(button);
-        }
-    }
-    
-    // Reset states
-    isHolding = false;
-    if (isDragging) {
-        stopDragging();
-    }
-    clearTimeout(holdTimer);
-    clearInterval(blobInterval);
-});
-space.addEventListener("touchcancel", (e) => {
-    if (isHolding && !isDragging && currentBlob) {
-        const button = document.createElement('button');
-        button.className = 'message-button leave-message-btn';
-        button.textContent = 'Leave a Message';
-        button.style.left = `${currentBlob.offsetLeft}px`;
-        button.style.top = `${currentBlob.offsetTop + 60}px`;
-        
-        button.onclick = () => {
-            currentMessageBlob = currentBlob;
-            messageOverlay.classList.add('active');
-        };
-        
-        space.appendChild(button);
-    }
-    
-    isHolding = false;
-    if (isDragging) {
-        stopDragging();
-    }
-    clearTimeout(holdTimer);
-    clearInterval(blobInterval);
-});
+space.addEventListener("touchend", handlePointerUp);
+space.addEventListener("touchcancel", handlePointerLeave);
 
 // ====== Event Handler Functions ======
 function handlePointerDown(e) {
@@ -197,11 +144,6 @@ function handleTouchStart(e) {
     if (e.cancelable) {
         e.preventDefault();
     }
-    
-    // Reset last position
-    lastMouseX = e.touches[0].clientX;
-    lastMouseY = e.touches[0].clientY;
-    
     handlePointerDown(e);
 }
 
@@ -233,23 +175,16 @@ function handlePointerMove(e) {
 }
 
 function handleTouchMove(e) {
+    // Prevent default to avoid scrolling on touch devices
     if (e.cancelable) {
         e.preventDefault();
     }
     
     if (isHolding) {
-        // Calculate movement distance since touch start
-        const touch = e.touches[0];
-        const movementX = touch.clientX - (lastMouseX || touch.clientX);
-        const movementY = touch.clientY - (lastMouseY || touch.clientY);
-        
-        // Update last position
-        lastMouseX = touch.clientX;
-        lastMouseY = touch.clientY;
-        
-        // Only start dragging if we've moved a significant amount
-        if (!isDragging && (Math.abs(movementX) > 20 || Math.abs(movementY) > 20)) {
+        // For touch events, we don't have movement, so always start dragging if holding
+        if (!isDragging) {
             startDragging(e);
+            // Clear timers if we start dragging
             clearTimeout(holdTimer);
             clearInterval(blobInterval);
         }
@@ -588,77 +523,61 @@ addViewportMeta();
 function createMessageOverlay() {
     messageOverlay = document.createElement('div');
     messageOverlay.className = 'message-overlay';
-    messageOverlay.style.display = 'none'; // Start hidden
-    messageOverlay.style.position = 'fixed';
-    messageOverlay.style.top = '0';
-    messageOverlay.style.left = '0';
-    messageOverlay.style.width = '100%';
-    messageOverlay.style.height = '100%';
-    messageOverlay.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-    messageOverlay.style.zIndex = '2000';
+    messageOverlay.style.display = 'flex';
+    messageOverlay.style.justifyContent = 'center';
+    messageOverlay.style.alignItems = 'center';
     
     const container = document.createElement('div');
     container.className = 'message-input-container';
-    container.style.position = 'absolute';
-    container.style.top = '50%';
-    container.style.left = '50%';
-    container.style.transform = 'translate(-50%, -50%)';
-    container.style.width = '80%';
-    container.style.maxWidth = '500px';
     container.style.backgroundColor = 'white';
     container.style.padding = '20px';
     container.style.borderRadius = '10px';
     container.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.1)';
+    container.style.position = 'relative'; // For absolute positioning of button
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.alignItems = 'center';
+    container.style.minHeight = '200px'; // Give container minimum height
     
-    const input = document.createElement('input'); // Changed from textarea to input
-    input.type = 'text';
-    input.className = 'message-input';
-    input.placeholder = 'Type your message here...';
-    input.style.width = '100%';
-    input.style.padding = '10px';
-    input.style.marginBottom = '20px';
-    input.style.border = '1px solid rgba(0, 0, 0, 0.2)';
-    input.style.borderRadius = '5px';
-    input.style.fontSize = '16px'; // Prevent zoom on mobile
+    const textarea = document.createElement('textarea');
+    textarea.className = 'message-input';
+    textarea.placeholder = 'Type your message here...';
+    textarea.style.width = '500px';
+    textarea.style.height = 'auto';
+    textarea.style.minHeight = '100px';
+    textarea.style.maxHeight = '400px';
+    textarea.style.resize = 'vertical';
+    textarea.style.overflowY = 'auto';
+    textarea.style.marginBottom = '60px'; // Space for button below
     
     const submitButton = document.createElement('button');
     submitButton.className = 'message-button';
     submitButton.textContent = 'Submit';
-    submitButton.style.display = 'block';
-    submitButton.style.margin = '0 auto';
+    submitButton.style.position = 'absolute'; // Position absolutely
+    submitButton.style.bottom = '20px'; // Distance from bottom
+    submitButton.style.left = '50%'; // Center horizontally
+    submitButton.style.transform = 'translateX(-50%)'; // Perfect centering
+    submitButton.style.padding = '8px 20px';
+    submitButton.style.minWidth = '100px'; // Minimum width for button
+    submitButton.onclick = handleMessageSubmit;
     
-    container.appendChild(input);
+    container.appendChild(textarea);
     container.appendChild(submitButton);
     messageOverlay.appendChild(container);
     document.body.appendChild(messageOverlay);
     
-    // Show overlay when active class is added
-    messageOverlay.addEventListener('transitionend', function() {
-        if (messageOverlay.classList.contains('active')) {
-            input.focus(); // Focus the input when overlay appears
-        }
-    });
-    
-    // Handle submit button click
-    submitButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        handleMessageSubmit();
-    });
-    
-    // Handle enter key
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            handleMessageSubmit();
-        }
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
     });
 }
 
 function handleMessageSubmit() {
-    const input = messageOverlay.querySelector('.message-input');
-    const message = input.value.trim();
+    const textarea = messageOverlay.querySelector('.message-input');
+    const message = textarea.value.trim();
     
     if (message && currentMessageBlob) {
+        // Create text element without any container styling
         const messageElement = document.createElement('div');
         messageElement.style.position = 'absolute';
         messageElement.style.left = '50%';
@@ -686,8 +605,7 @@ function handleMessageSubmit() {
     }
     
     // Reset and hide overlay
-    input.value = '';
-    messageOverlay.style.display = 'none';
+    textarea.value = '';
     messageOverlay.classList.remove('active');
     currentMessageBlob = null;
 }

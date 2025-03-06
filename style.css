@@ -150,7 +150,7 @@ body {
 
 .message-overlay.active {
     opacity: 1;
-    pointer-events: auto;
+    pointer-events: all;
 }
 
 .message-input-container {
@@ -171,8 +171,6 @@ body {
     border-radius: 5px;
     resize: vertical;
     overflow-y: auto;
-    -webkit-appearance: none;
-    appearance: none;
 }
 
 /* Remove or comment out the .blob-message class */
@@ -188,31 +186,4 @@ body {
     border-radius: 15px;
     pointer-events: none;
 }*/
-
-.mobile-keyboard-open .message-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.message-input-container {
-    max-height: 90vh;
-    margin: auto;
-}
-
-@media (max-width: 768px) {
-    .message-input {
-        font-size: 16px !important; /* Prevent zoom on mobile */
-    }
-    
-    .message-input-container {
-        padding: 15px !important;
-        width: 90% !important;
-    }
-}
 
