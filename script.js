@@ -105,8 +105,56 @@ space.addEventListener("mouseleave", handlePointerLeave);
 // ====== Touch Event Listeners ======
 space.addEventListener("touchstart", handleTouchStart, { passive: false });
 space.addEventListener("touchmove", handleTouchMove, { passive: false });
-space.addEventListener("touchend", handlePointerUp);
-space.addEventListener("touchcancel", handlePointerLeave);
+space.addEventListener("touchend", (e) => {
+    if (isHolding && !isDragging && currentBlob) {
+        // Get the last touch position
+        const lastTouch = e.changedTouches[0];
+        
+        // Create message button near the blob
+        const button = document.createElement('button');
+        button.className = 'message-button leave-message-btn';
+        button.textContent = 'Leave a Message';
+        button.style.left = `${currentBlob.offsetLeft}px`;
+        button.style.top = `${currentBlob.offsetTop + 60}px`;
+        
+        button.onclick = () => {
+            currentMessageBlob = currentBlob;
+            messageOverlay.classList.add('active');
+        };
+        
+        space.appendChild(button);
+    }
+    
+    isHolding = false;
+    if (isDragging) {
+        stopDragging();
+    }
+    clearTimeout(holdTimer);
+    clearInterval(blobInterval);
+});
+space.addEventListener("touchcancel", (e) => {
+    if (isHolding && !isDragging && currentBlob) {
+        const button = document.createElement('button');
+        button.className = 'message-button leave-message-btn';
+        button.textContent = 'Leave a Message';
+        button.style.left = `${currentBlob.offsetLeft}px`;
+        button.style.top = `${currentBlob.offsetTop + 60}px`;
+        
+        button.onclick = () => {
+            currentMessageBlob = currentBlob;
+            messageOverlay.classList.add('active');
+        };
+        
+        space.appendChild(button);
+    }
+    
+    isHolding = false;
+    if (isDragging) {
+        stopDragging();
+    }
+    clearTimeout(holdTimer);
+    clearInterval(blobInterval);
+});
 
 // ====== Event Handler Functions ======
 function handlePointerDown(e) {
